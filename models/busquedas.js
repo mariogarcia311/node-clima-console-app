@@ -1,9 +1,19 @@
+const fs=require('fs')
+
 const axios = require('axios')
 
     class Busquedas{
-        historial=['tegucigalpa','Madrid','San José']
+        historial=[]
+        dbPath='./db/databes.json'
         constructor(){
-
+            this.leerdb()
+        }
+        get historialCapitalizado(){
+            return this.historial.map(lugar=>{
+                let palabras=lugar.split(',');
+                palabras=palabras.map(p=>p[0].toUpperCase()+p.substring(1))
+                return palabras.join(' ')
+            });
         }
         get paramsMapbox(){
             return {
@@ -31,6 +41,54 @@ const axios = require('axios')
                 console.log(error)
                 return[];
             }
+        }
+        get paramsWeather(){
+            return {
+                appid:process.env.OPENWEATHER_KEY,
+                units:'metric',
+                lang:'es'
+            }
+        }
+        async climaLugar(lat,lon){
+            try {
+                const intance=axios.create({
+                    baseURL:`https://api.openweathermap.org/data/2.5/weather`,
+                    params:{...this.paramsWeather, lat,lon}
+                })
+                const resp=await intance.get();
+                return{
+                    desc:resp.data.weather[0].description,
+                    min:resp.data.main.temp_min,
+                    max:resp.data.main.temp_max,
+                    temp:resp.data.main.temp
+
+                }
+            } catch (error) {
+                console.log(error)
+                
+            }
+        }
+        agregarHistorial(lugar){
+            if(this.historial.includes(lugar.toLocaleLowerCase())){
+                return;
+            }
+            this.historial=this.historial.splice(0,5)
+            this.historial.unshift(lugar.toLocaleLowerCase())
+            this.guardardb()
+        }
+        guardardb(){
+            const payload={
+                historial:this.historial
+            };
+            fs.writeFileSync(this.dbPath,JSON.stringify(payload))
+        }
+        leerdb(){
+            if(!fs.existsSync(this.dbPath))return;
+            const info=fs.readFileSync(this.dbPath,{encoding:'utf-8'})
+            const data=JSON.parse(info);
+
+            this.historial=data.historial;
+           
         }
     }
 
